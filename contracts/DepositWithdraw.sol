@@ -16,33 +16,43 @@ contract DepositWithdraw {
 
     // user address => user balance
     mapping (address => uint256) public balances;
-
+    mapping (address => Account) public accounts;
+    mapping (address => bool) public supportedToken;
 
     event Deposited(address, uint256);
     event Withdrawn(address, uint256);
 
+    struct Account {
+        uint             accountId;
+        uint             accountStart;
+        address          sourceAsset;
+        address          targetAsset;
+        uint             sourceBalance;
+        uint             targetBalance;
+        uint             intervalAmount;
+    }
+
     constructor() {
         owner = payable(msg.sender);
+        // load asset addresses into tokenAddress mapping
+        supportedToken[address(0xC4375B7De8af5a38a93548eb8453a498222C4fF2)] = true; // DAI
+        supportedToken[address(0xd0A1E359811322d97991E03f863a0C30C2cF029C)] = true; // WETH
+        supportedToken[address(0xa36085F69e2889c224210F603D836748e7dC0088)] = true; // LINK
     }
 
-    function approveDeposit(address _token, uint256 _amount) external {
-        (bool success, ) = _token.delegatecall(
-            abi.encodeWithSignature("approve(address,uint256)", address(this), _amount)
-        );
-        require(success, "ApproveDeposit unsuccessful");
-    }
-
-    function deposit(address _token, uint256 _amount) external {
+    function depositSource(address _token, uint256 _amount) external {
+        //require(tokenAddresses[_token] == true, "Unsupported asset type");
         require(_amount > 0, "Insufficient value");
-        balances[msg.sender] += _amount;
+        accounts[msg.sender].sourceBalance += _amount;
         (bool success) = IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         require(success, "Deposit unsuccessful: transferFrom");
         emit Deposited(msg.sender, _amount);
     }
 
-    function withdraw(address _token, uint256 _amount) external {
-        require(balances[msg.sender] >= _amount);
-        balances[msg.sender] -= _amount;
+    function withdrawSource(address _token, uint256 _amount) external {
+        //require(tokenAddresses[_token] == true, "Unsupported asset type");
+        require(accounts[msg.sender].sourceBalance >= _amount);
+        accounts[msg.sender].sourceBalance -= _amount;
         (bool success) = IERC20(_token).transfer(msg.sender, _amount);
         require(success, "Withdraw unsuccessful");
         emit Withdrawn(msg.sender, _amount);
